@@ -3,10 +3,13 @@ const bodyParser = require('body-parser');
 const covidRouter = express.Router();
 const Request = require('request');
 const csvtojson = require('csvtojson');
+var moment = require('moment');
 const Coviddata = require('../models/coviddata');
+const Countrydata = require('../models/countrydata');
 const { request } = require('express');
 
-const url = 'http://localhost:5000/api/';
+const apiURL = 'http://localhost:5000/api/';
+const whoURL = 'https://covid19.who.int/WHO-COVID-19-global-data.csv';
 
 covidRouter.route('/')
 .get((req,res,next) => {
@@ -27,108 +30,35 @@ covidRouter.route('/')
       res.json(covid);
   }, (err) => next(err))
   .catch((err) => next(err));
-})
-.put((req, res, next) => {
-  res.statusCode = 403;
-  res.end('PUT operation not supported on /api');
-})
-.delete((req, res, next) => {
-  res.statusCode = 403;
-  res.end('DELETE operation not supported on /api');    
-});
-
-covidRouter.route('/update/global')
-.get((req,res,next) => {
- Request.get("https://covid19.who.int/WHO-COVID-19-global-data.csv", (error, response, body) => {
-  csvtojson()
-  .fromString(body)
-  .then((jsonObj) => {
-    //zusammen führen aller Daten aus jedem Land pro Tag
-    //Kann selbe Schema wie countrys genutz werden. Nur Name Global, WHO_region leer und Country_code leer
-    Request({
-      url : url,
-      method :"POST",
-      headers : {
-        "content-type": "application/json",
-      },
-      body: jsonObj,
-      json: true
-    },
-    function (err, response, body) {
-      console.log(err, body);
-    });
-    res.statusCode = 200;
-    res.end('Completed Update Global Data');
-  })
- })
-});
-
-covidRouter.route('/update/daily')
-.get((req,res,next) => {
- //Request.get("https://covid19.mathdro.id/api/daily", (error, response, body) => {
-   //ansprechen und ausgeben aller elemente
-   /*const requestDoc = JSON.parse(body);
-   for (let index = 0; index < requestDoc.length; index++) {
-     const element = requestDoc[index];
-     console.log('Element ', index);
-     console.log(' ',element);
-   }*/
-   //ausgeben nur ein bestimmtes element
-   /*const requestDoc = JSON.parse(body);
-   console.log('10',requestDoc[10]);*/
-   //filtern eines objects
-   /*const requestDoc = JSON.parse(body);
-   const mydoc = requestDoc.filter(function(item){
-    return item.reportDate == "2020-12-15";
-   });
-   console.log(mydoc);*/
- //})
- //convert csv to json
- Request.get("https://covid19.who.int/WHO-COVID-19-global-data.csv", (error, response, body) => {
-  csvtojson()
-  .fromString(body)
-  .then((jsonObj) => {
-    /*const filtered = jsonObj.filter(function(item){
-      return item.Country == "Germany";
-    });*/
-    /*const filtered2 =filtered.filter(function(item){
-      return item.Date_reported == '2020-04-05';
-    })*/
-    //kürzere schreibweise
-    //const filtered = jsonObj.filter((x)=>x.Country == "Germany");
-    //letzten eintrag
-    //console.log(filtered[filtered.length-1]);
-    Request({
-      url : url,
-      method :"POST",
-      headers : {
-        "content-type": "application/json",
-      },
-      body: jsonObj,
-      json: true
-    },
-    function (err, response, body) {
-      console.log(err, body);
-    });
-    res.statusCode = 200;
-    res.end('Completed Update Daily Data');
-  })
- })
 });
 
 covidRouter.route('/update/country')
 .get((req,res,next) => {
- Request.get("https://covid19.who.int/WHO-COVID-19-global-data.csv", (error, response, body) => {
+ Request.get(whoURL, (error, response, body) => {
   csvtojson()
   .fromString(body)
   .then((jsonObj) => {
+    
+    var lookup = {};
+    var items = jsonObj;
+    var result = [];
+
+    for (var item, i = 0; item = items[i++];) {
+      var name = item.Country;
+      
+      if (!(name in lookup)) {
+      lookup[name] = 1;
+      result.push({ Country: name});
+      }
+    }
+
     Request({
-      url : url,
+      url : `${apiURL}/update/country`,
       method :"POST",
       headers : {
         "content-type": "application/json",
       },
-      body: jsonObj,
+      body: result,
       json: true
     },
     function (err, response, body) {
@@ -136,6 +66,106 @@ covidRouter.route('/update/country')
     });
     res.statusCode = 200;
     res.end('Completed Update Country Data!');
+  })
+ })
+})
+.post((req, res, next) => {
+  Countrydata.insertMany(req.body)
+  .then((country) => {
+      console.log('Countrydata Created ', country);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(country);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});
+
+covidRouter.route('/update')
+.get((req,res,next) => {
+ Request.get(whoURL, (error, response, body) => {
+  csvtojson()
+  .fromString(body)
+  .then((jsonObj) => {
+    var globalDataObj=[];
+
+    //Convert YYYY-MM-DD Datetime in Unix-Timestamp
+    for (var index = 0; index < jsonObj.length; index++) {
+      const element = jsonObj[index];
+      const mydate = parseInt(moment(element.Date_reported,'YYYY-MM-DD').unix());
+      jsonObj[index].Date_reported = mydate;
+    }
+
+    //get all Dates
+    var lookup = {};
+    var items = jsonObj;
+    var result = [];
+
+    for (var item, i = 0; item = items[i++];) {
+      var currentDate = item.Date_reported;
+      
+      if (!(currentDate in lookup)) {
+      lookup[currentDate] = 1;
+      result.push(currentDate);
+      }
+    }
+    
+    //Create Globaldata
+    for (var index = 0; index < result.length; index++) {
+      var currentSelectedDate=result[index];
+      var currentNewCases=0;
+      var currentCumulativeCases=0;
+      var currentNewDeaths=0;
+      var currentCumulativeDeaths=0;
+      const filteredJsonObj = jsonObj.filter((x)=>x.Date_reported == currentDate);
+
+      for (var index2 = 0; index2 < filteredJsonObj.length; index2++) {
+        const element = filteredJsonObj[index2];
+        currentNewCases += parseInt(element.New_cases);
+        currentCumulativeCases += parseInt(element.Cumulative_cases);
+        currentNewDeaths += parseInt(element.New_deaths);
+        currentCumulativeDeaths += parseInt(element.Cumulative_deaths);  
+      }
+      globalDataObj.push({
+        Date_reported: currentSelectedDate,
+        Country_code: "",
+        Country: "Global",
+        WHO_region: "",
+        New_cases: currentNewCases,
+        Cumulative_cases: currentCumulativeCases,
+        New_deaths: currentNewDeaths,
+        Cumulative_deaths: currentCumulativeDeaths
+      });
+    }
+    
+    //Create a Collection for Dailydata
+    Request({
+      url : apiURL,
+      method :"POST",
+      headers : {
+        "content-type": "application/json",
+      },
+      body: jsonObj,
+      json: true
+    },
+    function (err, response, body) {
+      console.log(err, body);
+    });
+
+    //Add globalData to the collection
+    Request({
+      url : apiURL,
+      method :"POST",
+      headers : {
+        "content-type": "application/json",
+      },
+      body: globalDataObj,
+      json: true
+    },
+    function (err, response, body) {
+      console.log(err, body);
+    });
+    res.statusCode = 200;
+    res.end('Completed Update Database!');
   })
  })
 });

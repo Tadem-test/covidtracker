@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 const CovidSchema = new Schema({
   Date_reported: {
-    type: String,
+    type: Number,
     required: true
   },
   Country_code: {
