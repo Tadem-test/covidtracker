@@ -1,41 +1,27 @@
 import React from 'react';
+import "bootstrap/dist/css/bootstrap.min.css";
+import { BrowserRouter as Router, Route} from "react-router-dom";
+import './App.css'
 
-import { Cards, CountryPicker, Chart } from './components';
-import { fetchData } from './api/load';
-import styles from './App.module.css';
+import Navbar from "./components/navbar.component";
+import CountryList from "./components/country-list.component";
+import CountryDailyList from "./components/country-daily-list.component";
+/*import ExercisesList from "./components/exercises-list.component";
+import EditExercise from "./components/edit-exercise.component";
+import CreateExercise from "./components/create-exercise.component";
+import CreateUser from "./components/create-user.component";*/
 
-import image from './images/image.png';
-
-class App extends React.Component {
-  state = {
-    data: {},
-    country: '',
-  }
-
-  async componentDidMount() {
-    const data = await fetchData();
-
-    this.setState({ data });
-  }
-
-  handleCountryChange = async (country) => {
-    const data = await fetchData(country);
-
-    this.setState({ data, country: country });
-  }
-
-  render() {
-    const { data, country } = this.state;
-
-    return (
-      <div className={styles.container}>
-        <img className={styles.image} src={image} alt="COVID-19" />
-        <Cards data={data} />
-        <CountryPicker handleCountryChange={this.handleCountryChange} />
-        <Chart data={data} country={country} />
+function App() {
+  return (
+    <Router>
+      <div className="container">
+      <Navbar />
+      <br/>
+      <Route path="/table" exact component={CountryList} />
+      <Route path="/tablecd" exact component={CountryDailyList} />
       </div>
-    );
-  }
+    </Router>
+  );
 }
 
-export default App;
+export default App

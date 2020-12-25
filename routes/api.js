@@ -11,6 +11,7 @@ const { request } = require('express');
 const apiURL = 'http://localhost:5000/api/';
 const whoURL = 'https://covid19.who.int/WHO-COVID-19-global-data.csv';
 
+//all data
 covidRouter.route('/')
 .get((req,res,next) => {
   Coviddata.find({})
@@ -32,6 +33,43 @@ covidRouter.route('/')
   .catch((err) => next(err));
 });
 
+//country list
+covidRouter.route('/country')
+.get((req,res,next) => {
+  Countrydata.find({})
+  .then((country) => {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(country);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});
+
+//live data from a country
+covidRouter.route('/:countryName/today')
+.get((req,res,next) => {
+  Coviddata.find({ Country: req.params.countryName}).sort({Date_reported: -1}).limit(1)
+  .then((coviddata) => {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(coviddata);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});
+
+//all data from a country
+covidRouter.route('/:countryName')
+.get((req,res,next) => {
+  Coviddata.find({Country: req.params.countryName})
+  .then((coviddata) => {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(coviddata);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});
+
+//update country list in database
 covidRouter.route('/update/country')
 .get((req,res,next) => {
  Request.get(whoURL, (error, response, body) => {
@@ -51,6 +89,7 @@ covidRouter.route('/update/country')
       result.push({ Country: name});
       }
     }
+    result.push({Country: "Global"});
 
     Request({
       url : `${apiURL}/update/country`,
@@ -80,7 +119,8 @@ covidRouter.route('/update/country')
   .catch((err) => next(err));
 });
 
-covidRouter.route('/update')
+//update database and set global counts 
+covidRouter.route('/update/daily')
 .get((req,res,next) => {
  Request.get(whoURL, (error, response, body) => {
   csvtojson()
@@ -88,14 +128,14 @@ covidRouter.route('/update')
   .then((jsonObj) => {
     var globalDataObj=[];
 
-    //Convert YYYY-MM-DD Datetime in Unix-Timestamp
+    //convert YYYY-MM-DD datetime in Unix-Timestamp
     for (var index = 0; index < jsonObj.length; index++) {
       const element = jsonObj[index];
       const mydate = parseInt(moment(element.Date_reported,'YYYY-MM-DD').unix());
       jsonObj[index].Date_reported = mydate;
     }
 
-    //get all Dates
+    //get all dates
     var lookup = {};
     var items = jsonObj;
     var result = [];
@@ -109,21 +149,21 @@ covidRouter.route('/update')
       }
     }
     
-    //Create Globaldata
+    //create global data
     for (var index = 0; index < result.length; index++) {
       var currentSelectedDate=result[index];
       var currentNewCases=0;
       var currentCumulativeCases=0;
       var currentNewDeaths=0;
       var currentCumulativeDeaths=0;
-      const filteredJsonObj = jsonObj.filter((x)=>x.Date_reported == currentDate);
+      const filteredJsonObj = jsonObj.filter((x)=>x.Date_reported === currentSelectedDate);
 
       for (var index2 = 0; index2 < filteredJsonObj.length; index2++) {
         const element = filteredJsonObj[index2];
         currentNewCases += parseInt(element.New_cases);
         currentCumulativeCases += parseInt(element.Cumulative_cases);
         currentNewDeaths += parseInt(element.New_deaths);
-        currentCumulativeDeaths += parseInt(element.Cumulative_deaths);  
+        currentCumulativeDeaths += parseInt(element.Cumulative_deaths);
       }
       globalDataObj.push({
         Date_reported: currentSelectedDate,
@@ -137,7 +177,7 @@ covidRouter.route('/update')
       });
     }
     
-    //Create a Collection for Dailydata
+    //create a collection for daily data
     Request({
       url : apiURL,
       method :"POST",
@@ -150,8 +190,8 @@ covidRouter.route('/update')
     function (err, response, body) {
       console.log(err, body);
     });
-
-    //Add globalData to the collection
+    
+    //add global data to collection
     Request({
       url : apiURL,
       method :"POST",
