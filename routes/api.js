@@ -12,7 +12,7 @@ const apiURL = 'http://localhost:5000/api/';
 const whoURL = 'https://covid19.who.int/WHO-COVID-19-global-data.csv';
 
 //all data
-covidRouter.route('/')
+covidRouter.route('/all')
 .get((req,res,next) => {
   Coviddata.find({})
   .then((coviddata) => {
@@ -34,31 +34,39 @@ covidRouter.route('/')
 });
 
 //country list
-covidRouter.route('/country')
+covidRouter.route('/countries')
 .get((req,res,next) => {
-  Countrydata.find({})
-  .then((country) => {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.json(country);
-  }, (err) => next(err))
-  .catch((err) => next(err));
-});
-
-//live data from a country
-covidRouter.route('/:countryName/today')
-.get((req,res,next) => {
-  Coviddata.find({ Country: req.params.countryName}).sort({Date_reported: -1}).limit(1)
+  Coviddata.find({Date_reported: parseInt(moment({h:0, m:0, s:0, ms:0}).unix())})
   .then((coviddata) => {
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json');
       res.json(coviddata);
   }, (err) => next(err))
   .catch((err) => next(err));
+  /*Countrydata.find({})
+  .then((country) => {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(country);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+  */
 });
 
+//today data from countries
+/*covidRouter.route('/countries/today')
+.get((req,res,next) => {
+  Coviddata.find({Date_reported: parseInt(moment({h:0, m:0, s:0, ms:0}).unix())})
+  .then((coviddata) => {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(coviddata);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});*/
+
 //all data from a country
-covidRouter.route('/:countryName')
+covidRouter.route('/countries/:countryName')
 .get((req,res,next) => {
   Coviddata.find({Country: req.params.countryName})
   .then((coviddata) => {
@@ -69,8 +77,20 @@ covidRouter.route('/:countryName')
   .catch((err) => next(err));
 });
 
+//live data from a country
+covidRouter.route('/countries/:countryName/today')
+.get((req,res,next) => {
+  Coviddata.findOne({ Country: req.params.countryName}).sort({Date_reported: -1}).limit(1)
+  .then((coviddata) => {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(coviddata);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});
+
 //update country list in database
-covidRouter.route('/update/country')
+/*covidRouter.route('/update/country')
 .get((req,res,next) => {
  Request.get(whoURL, (error, response, body) => {
   csvtojson()
@@ -89,7 +109,6 @@ covidRouter.route('/update/country')
       result.push({ Country: name});
       }
     }
-    result.push({Country: "Global"});
 
     Request({
       url : `${apiURL}/update/country`,
@@ -118,7 +137,7 @@ covidRouter.route('/update/country')
   }, (err) => next(err))
   .catch((err) => next(err));
 });
-
+*/
 //update database and set global counts 
 covidRouter.route('/update/daily')
 .get((req,res,next) => {
@@ -179,7 +198,7 @@ covidRouter.route('/update/daily')
     
     //create a collection for daily data
     Request({
-      url : apiURL,
+      url : `${apiURL}/all`,
       method :"POST",
       headers : {
         "content-type": "application/json",
@@ -193,7 +212,7 @@ covidRouter.route('/update/daily')
     
     //add global data to collection
     Request({
-      url : apiURL,
+      url : `${apiURL}/all`,
       method :"POST",
       headers : {
         "content-type": "application/json",
