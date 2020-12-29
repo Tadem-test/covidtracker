@@ -3,7 +3,8 @@ import {MenuItem,FormControl,Select,Card,CardContent,} from "@material-ui/core";
 import InfoBox from './components/InfoBox/InfoBox';
 import LineGraph from './components/LineGraph/LineGraph';
 import Table from './components/Table/Table';
-import { sortData } from './util/util';
+import { sortData, prettyPrintStat } from './util/util';
+import numeral from "numeral";
 import './App.css';
 
 const apiURL = "http://localhost:5000/api";
@@ -13,6 +14,7 @@ function App() {
   const [country, setCountry] = useState('Global');
   const [countryInfo, setCountryInfo] = useState({});
   const [tableData, setTableData] = useState([]);
+  const [casesType, setCasesType] = useState("cases");
   
   useEffect(() => {
     fetch(`${apiURL}/countries/Global/today`)
@@ -56,12 +58,11 @@ function App() {
     })
   };
 
-  console.log("data: ", countryInfo);
   return (
     <div className="app">
       <div className="app__left">
         <div className="app__header">
-        <h1>COVID-19 Tracker By Talha Hüseyin Demirel</h1>
+        <h1>COVID-19 Tracker</h1>
         <FormControl className="app__dropdown">
           <Select variant="outlined" onChange={onCountryChange} value={country}>
             <MenuItem value="Global">Global</MenuItem>
@@ -73,19 +74,25 @@ function App() {
         </div>
         
         <div className="app__stats">
-              <InfoBox title="Cases" cases={countryInfo.New_cases} total={countryInfo.Cumulative_cases}/>
-              <InfoBox title="Recovered" cases={2345} total={3000}/>
-              <InfoBox title="Deaths" cases={countryInfo.New_deaths} total={countryInfo.Cumulative_deaths}/>
+              <InfoBox 
+              onClick={(e) => setCasesType("cases")} 
+              title="Cases" 
+              cases={prettyPrintStat(countryInfo.New_cases)} 
+              total={prettyPrintStat(countryInfo.Cumulative_cases)}/>
+              <InfoBox 
+              onClick={(e) => setCasesType("deaths")} 
+              title="Deaths" 
+              cases={prettyPrintStat(countryInfo.New_deaths)} 
+              total={prettyPrintStat(countryInfo.Cumulative_deaths)}/>
         </div>
-
-        
-        {/* Graph */}
+        <Card>
+          <h3>Worldwide new cases</h3>
+          <LineGraph casesType={casesType} />
+        </Card>    
       </div>
       <Card className="app_right">
               <h3>Live Cases by Country</h3>
               <Table countries={tableData} />
-              <h3>Worldwide new cases</h3>
-              <LineGraph />
       </Card>
     </div>
   );
