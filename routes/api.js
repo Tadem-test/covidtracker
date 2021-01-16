@@ -7,12 +7,151 @@ var moment = require('moment');
 const Coviddata = require('../models/coviddata');
 const Countrydata = require('../models/countrydata');
 const { request } = require('express');
+const NodeCache = require('node-cache');
 
 const apiURL = 'http://localhost:5000/api/';
 const whoURL = 'https://covid19.who.int/WHO-COVID-19-global-data.csv';
 
+const covidCache = new NodeCache();
+
+function getLastData(arr, prop) {
+  var max;
+  for (var i=0 ; i<arr.length ; i++) {
+      if (max == null || parseInt(arr[i][prop]) > parseInt(max[prop]))
+          max = arr[i];
+  }
+  return max;
+}
+
+function getStatistikData(data) {
+  const cases = {};
+  const deaths = {};
+  const statData = {};
+
+  for (var index = 0; index < data.length; index++) {
+    const selectedDate = moment.unix(data[index].Date_reported).format('DD-MM-YYYY');
+    const casesValue = data[index].Cumulative_cases;
+    const deathsValue = data[index].Cumulative_deaths;
+    cases[selectedDate] = casesValue;
+    deaths[selectedDate] = deathsValue;
+  }
+
+  statData["cases"] = cases;
+  statData["deaths"] = deaths;
+
+  return statData;
+}
+
+function getCountryList(data) {
+  var lookup = {};
+  var countries = [];
+
+  for (var item, i = 0; item = data[i++];) {
+    var country = item.Country;
+    
+    if (!(country in lookup)) {
+    lookup[country] = 1;
+    countries.push(country);
+    }
+  }
+
+  return countries;
+}
+
+function getTableData(data, countryList) {
+  const tableData = {}
+
+  for (var index = 0; index < countryList.length; index++) {
+    const country = countryList[index];
+
+    const filterByCountry = data.filter((x)=>x.Country === country);
+    const countryData = getLastData(filterByCountry, "Date_reported");
+
+    tableData[country] = countryData.Cumulative_cases;
+  }
+
+  return tableData;
+}
+
+covidRouter.route('/:countryName/all')
+.get((req,res,next) => {
+  Coviddata.find({Country: req.params.countryName})
+  .then((data) => {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(data);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});
+
+covidRouter.route('/:countryName/today')
+.get((req,res,next) => {
+  Coviddata.find({Country: req.params.countryName})
+  .then((data) => {
+      const lastData = getLastData(data, "Date_reported");
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(lastData);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});
+
+covidRouter.route('/:countryName/stat')
+.get((req,res,next) => {
+  Coviddata.find({Country: req.params.countryName})
+  .sort({Date_reported: -1})
+  .limit(120)
+  .then((data) => {
+      const stat = getStatistikData(data);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(stat);
+  }, (err) => next(err))
+  .catch((err) => next(err));
+});
+
+covidRouter.route('/countryList')
+.get((req,res,next) => {
+  if(covidCache.has("countryList")===false) {
+    Coviddata.find({})
+    .then((data) => {
+      const countryList = getCountryList(data);
+      covidCache.set("countryList", countryList);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.json(covidCache.get("countryList"));
+    }, (err) => next(err))
+    .catch((err) => next(err));
+  }
+  else {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.json(covidCache.get("countryList"));
+  }
+});
+
+covidRouter.route('/countryList/table')
+.get((req,res,next) => {
+  if(covidCache.has("countryTable")===false) {
+    Coviddata.find({})
+    .then((data) => {
+        const tabelData = getTableData(data, getCountryList(data));
+        covidCache.set("countryTable", tabelData);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(tabelData);
+    }, (err) => next(err))
+    .catch((err) => next(err));
+  }
+  else {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.json(covidCache.get("countryTable"));
+  }
+});
+
 //all data
-covidRouter.route('/all')
+/*covidRouter.route('/all')
 .get((req,res,next) => {
   Coviddata.find({})
   .then((coviddata) => {
@@ -31,27 +170,27 @@ covidRouter.route('/all')
       res.json(covid);
   }, (err) => next(err))
   .catch((err) => next(err));
-});
+});*/
 
 //country list
-covidRouter.route('/countries')
+/*covidRouter.route('/countries')
 .get((req,res,next) => {
-  Coviddata.find({Date_reported: parseInt(moment({h:0, m:0, s:0, ms:0}).unix())})
+  Coviddata.find({})
   .then((coviddata) => {
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json');
-      res.json(coviddata);
+      res.json(coviddata.length);
   }, (err) => next(err))
   .catch((err) => next(err));
-  /*Countrydata.find({})
+  Countrydata.find({})
   .then((country) => {
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json');
       res.json(country);
   }, (err) => next(err))
   .catch((err) => next(err));
-  */
-});
+  
+});*/
 
 //today data from countries
 /*covidRouter.route('/countries/today')
@@ -66,7 +205,7 @@ covidRouter.route('/countries')
 });*/
 
 //all data from a country
-covidRouter.route('/countries/:countryName')
+/*covidRouter.route('/countries/:countryName')
 .get((req,res,next) => {
   Coviddata.find({Country: req.params.countryName})
   .then((coviddata) => {
@@ -75,10 +214,10 @@ covidRouter.route('/countries/:countryName')
       res.json(coviddata);
   }, (err) => next(err))
   .catch((err) => next(err));
-});
+});*/
 
 //live data from a country
-covidRouter.route('/countries/:countryName/today')
+/*covidRouter.route('/countries/:countryName/today')
 .get((req,res,next) => {
   Coviddata.findOne({ Country: req.params.countryName}).sort({Date_reported: -1}).limit(1)
   .then((coviddata) => {
@@ -87,7 +226,7 @@ covidRouter.route('/countries/:countryName/today')
       res.json(coviddata);
   }, (err) => next(err))
   .catch((err) => next(err));
-});
+});*/
 
 //update country list in database
 /*covidRouter.route('/update/country')

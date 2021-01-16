@@ -26,15 +26,16 @@ function App() {
 
   useEffect(() => {
     const getCountriesData = async () => {
-      await fetch (`${apiURL}/countries`)
+      await fetch (`${apiURL}/countryList`)
       .then((response) => response.json())
       .then((data) => {
         const countries = data.map((country) => ({
             name: country.Country,
             value: country.Country
           }));
-
+          console.log(countries);
           const sortedData = sortData(data);
+          console.log(sortedData);
           setTableData(sortedData);
           setCountries(countries);
       });
@@ -65,7 +66,6 @@ function App() {
         <h1>COVID-19 Tracker</h1>
         <FormControl className="app__dropdown">
           <Select variant="outlined" onChange={onCountryChange} value={country}>
-            <MenuItem value="Global">Global</MenuItem>
             {countries.map(country => (
                 <MenuItem value={country.value}>{country.name}</MenuItem>
             ))}         
