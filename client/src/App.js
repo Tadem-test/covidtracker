@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import {MenuItem,FormControl,Select,Card,CardContent,} from "@material-ui/core";
+import {MenuItem,FormControl,Select,Card,} from "@material-ui/core";
 import InfoBox from './components/InfoBox/InfoBox';
 import LineGraph from './components/LineGraph/LineGraph';
 import Table from './components/Table/Table';
 import { sortData, prettyPrintStat } from './util/util';
-import numeral from "numeral";
 import './App.css';
 
 const apiURL = "http://localhost:5000/api";
@@ -17,7 +16,7 @@ function App() {
   const [casesType, setCasesType] = useState("cases");
   
   useEffect(() => {
-    fetch(`${apiURL}/countries/Global/today`)
+    fetch(`${apiURL}/Global/today`)
     .then(response => response.json())
     .then(data => {
       setCountryInfo(data);
@@ -29,14 +28,7 @@ function App() {
       await fetch (`${apiURL}/countryList`)
       .then((response) => response.json())
       .then((data) => {
-        const countries = data.map((country) => ({
-            name: country.Country,
-            value: country.Country
-          }));
-          console.log(countries);
-          const sortedData = sortData(data);
-          console.log(sortedData);
-          setTableData(sortedData);
+          const countries = data;
           setCountries(countries);
       });
     };
@@ -44,13 +36,27 @@ function App() {
     getCountriesData();
   }, []);
 
+  useEffect(() => {
+    const getTableData = async () => {
+      await fetch (`${apiURL}/countryList/table`)
+      .then((response) => response.json())
+      .then((data) => {
+          const tableData = data;
+          const sortedData = sortData(tableData);
+          setTableData(sortedData);
+      });
+    };
+
+    getTableData();
+  }, []);
+
   const onCountryChange = async (event) => {
     const countryCode = event.target.value;
     setCountry(countryCode);
 
     const url =countryCode === 'Global' 
-    ? `${apiURL}/countries/Global/today` 
-    : `${apiURL}/countries/${countryCode}/today`;
+    ? `${apiURL}/Global/today` 
+    : `${apiURL}/${countryCode}/today`;
 
     await fetch(url)
     .then(response => response.json())
@@ -66,8 +72,9 @@ function App() {
         <h1>COVID-19 Tracker</h1>
         <FormControl className="app__dropdown">
           <Select variant="outlined" onChange={onCountryChange} value={country}>
+          <MenuItem value="Global">Global</MenuItem>
             {countries.map(country => (
-                <MenuItem value={country.value}>{country.name}</MenuItem>
+                <MenuItem value={country}>{country}</MenuItem>
             ))}         
           </Select>
         </FormControl>
@@ -86,8 +93,8 @@ function App() {
               total={prettyPrintStat(countryInfo.Cumulative_deaths)}/>
         </div>
         <Card>
-          <h3>Worldwide new cases</h3>
-          <LineGraph casesType={casesType} />
+          <h3>Worldwide new {casesType}</h3>
+          <LineGraph casesType={casesType} country={country}/>
         </Card>    
       </div>
       <Card className="app_right">

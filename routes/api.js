@@ -28,10 +28,10 @@ function getStatistikData(data) {
   const deaths = {};
   const statData = {};
 
-  for (var index = 0; index < data.length; index++) {
-    const selectedDate = moment.unix(data[index].Date_reported).format('DD-MM-YYYY');
-    const casesValue = data[index].Cumulative_cases;
-    const deathsValue = data[index].Cumulative_deaths;
+  for (var index = data.length - 1; index > 0; index--) {
+    const selectedDate = moment.unix(data[index].Date_reported).format('MM/DD/YY');
+    const casesValue = data[index].New_cases;
+    const deathsValue = data[index].New_deaths;
     cases[selectedDate] = casesValue;
     deaths[selectedDate] = deathsValue;
   }
@@ -49,7 +49,7 @@ function getCountryList(data) {
   for (var item, i = 0; item = data[i++];) {
     var country = item.Country;
     
-    if (!(country in lookup)) {
+    if (!(country in lookup) && country != "Global") {
     lookup[country] = 1;
     countries.push(country);
     }
@@ -59,7 +59,7 @@ function getCountryList(data) {
 }
 
 function getTableData(data, countryList) {
-  const tableData = {}
+  const tableData = [];
 
   for (var index = 0; index < countryList.length; index++) {
     const country = countryList[index];
@@ -67,7 +67,10 @@ function getTableData(data, countryList) {
     const filterByCountry = data.filter((x)=>x.Country === country);
     const countryData = getLastData(filterByCountry, "Date_reported");
 
-    tableData[country] = countryData.Cumulative_cases;
+    tableData.push({
+      "Country": country,
+      "Cases": countryData.Cumulative_cases
+    });
   }
 
   return tableData;
@@ -150,17 +153,7 @@ covidRouter.route('/countryList/table')
   }
 });
 
-//all data
-/*covidRouter.route('/all')
-.get((req,res,next) => {
-  Coviddata.find({})
-  .then((coviddata) => {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.json(coviddata);
-  }, (err) => next(err))
-  .catch((err) => next(err));
-})
+covidRouter.route('/all')
 .post((req, res, next) => {
   Coviddata.insertMany(req.body)
   .then((covid) => {
@@ -170,113 +163,8 @@ covidRouter.route('/countryList/table')
       res.json(covid);
   }, (err) => next(err))
   .catch((err) => next(err));
-});*/
-
-//country list
-/*covidRouter.route('/countries')
-.get((req,res,next) => {
-  Coviddata.find({})
-  .then((coviddata) => {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.json(coviddata.length);
-  }, (err) => next(err))
-  .catch((err) => next(err));
-  Countrydata.find({})
-  .then((country) => {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.json(country);
-  }, (err) => next(err))
-  .catch((err) => next(err));
-  
-});*/
-
-//today data from countries
-/*covidRouter.route('/countries/today')
-.get((req,res,next) => {
-  Coviddata.find({Date_reported: parseInt(moment({h:0, m:0, s:0, ms:0}).unix())})
-  .then((coviddata) => {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.json(coviddata);
-  }, (err) => next(err))
-  .catch((err) => next(err));
-});*/
-
-//all data from a country
-/*covidRouter.route('/countries/:countryName')
-.get((req,res,next) => {
-  Coviddata.find({Country: req.params.countryName})
-  .then((coviddata) => {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.json(coviddata);
-  }, (err) => next(err))
-  .catch((err) => next(err));
-});*/
-
-//live data from a country
-/*covidRouter.route('/countries/:countryName/today')
-.get((req,res,next) => {
-  Coviddata.findOne({ Country: req.params.countryName}).sort({Date_reported: -1}).limit(1)
-  .then((coviddata) => {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.json(coviddata);
-  }, (err) => next(err))
-  .catch((err) => next(err));
-});*/
-
-//update country list in database
-/*covidRouter.route('/update/country')
-.get((req,res,next) => {
- Request.get(whoURL, (error, response, body) => {
-  csvtojson()
-  .fromString(body)
-  .then((jsonObj) => {
-    
-    var lookup = {};
-    var items = jsonObj;
-    var result = [];
-
-    for (var item, i = 0; item = items[i++];) {
-      var name = item.Country;
-      
-      if (!(name in lookup)) {
-      lookup[name] = 1;
-      result.push({ Country: name});
-      }
-    }
-
-    Request({
-      url : `${apiURL}/update/country`,
-      method :"POST",
-      headers : {
-        "content-type": "application/json",
-      },
-      body: result,
-      json: true
-    },
-    function (err, response, body) {
-      console.log(err, body);
-    });
-    res.statusCode = 200;
-    res.end('Completed Update Country Data!');
-  })
- })
-})
-.post((req, res, next) => {
-  Countrydata.insertMany(req.body)
-  .then((country) => {
-      console.log('Countrydata Created ', country);
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.json(country);
-  }, (err) => next(err))
-  .catch((err) => next(err));
 });
-*/
+
 //update database and set global counts 
 covidRouter.route('/update/daily')
 .get((req,res,next) => {
