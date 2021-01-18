@@ -12,8 +12,10 @@
 
 .table td {
     padding: 0.5rem;
+    margin-left: 5px;
+    margin-right: 5px;
 }
 
 .table tr:nth-of-type(odd) {
-    background-color: #f3f2f8;
+    background-color: #b9c0c2;
 }

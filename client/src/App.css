@@ -3,13 +3,14 @@
 }
 
 body {
-  background-color: #f5f6fa;
+  background-color: #1992A4;
 }
 
 .app {
   display: flex;
   justify-self: space-evenly;
   padding: 20px;
+  
 }
 
 .app__header {
@@ -19,8 +20,16 @@ body {
   justify-content: space-between;
 }
 
+.app__dropdown {
+  background-color: #f5f6fa;
+}
 .app__left {
   flex: 0.9;
+  margin-bottom: 15px;
+}
+
+.app__right {
+  margin-left: 15px;
 }
 
 .app__stats {
@@ -31,5 +40,9 @@ body {
 @media (max-width: 990px) {
   .app {
     flex-direction: column;
+  }
+
+  .app__right {
+    margin-left: -5px;
   }
 }
