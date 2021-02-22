@@ -3,7 +3,6 @@ import {MenuItem,FormControl,Select,Card,} from "@material-ui/core";
 import InfoBox from './components/InfoBox/InfoBox';
 import LineGraph from './components/LineGraph/LineGraph';
 import Table from './components/Table/Table';
-import Loading from './components/Loading/Loading';
 import { sortData, prettyPrintStat } from './util/util';
 import './App.css';
 
@@ -68,7 +67,6 @@ function App() {
 
   return (
     <div className="app">
-      {/*<Loading type="spin" color="grey" />*/}
       <div className="app__left">
         <div className="app__header">
         <h1>COVID-19 Tracker</h1>

@@ -83,7 +83,7 @@ function LineGraph({ casesType, country }) {
           data={{
             datasets: [
               {
-                backgroundColor: "#E87076",
+                backgroundColor: "#e8a0a5",
                 borderColor: "#CC1034",
                 data: data,
               },
